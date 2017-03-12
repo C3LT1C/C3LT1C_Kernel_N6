@@ -25,10 +25,10 @@
 #define DELAY_MSEC			100
 #define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
 #define DEFAULT_SUSP_CPUS		1
-#define DEFAULT_MAX_CPUS_ECONOMIC	2
-#define DEFAULT_MAX_CPUS_CRITICAL	1
-#define DEFAULT_BATT_ECONOMIC		25
-#define DEFAULT_BATT_CRITICAL		15
+#define DEFAULT_MAX_CPUS_ECONOMIC	3
+#define DEFAULT_MAX_CPUS_CRITICAL	2
+#define DEFAULT_BATT_ECONOMIC		15
+#define DEFAULT_BATT_CRITICAL		10
 #define DEBUG_MASK			0
 
 static struct state_helper {
@@ -94,8 +94,8 @@ static void __ref state_helper_work(struct work_struct *work)
 	target_cpus_calc();
 
 	if (info.target_cpus < num_online_cpus()) {
-		for(cpu = NR_CPUS-1; cpu > 0; cpu--) {
-			if (!cpu_online(cpu))
+		for_each_online_cpu(cpu) {
+			if (cpu == 0)
 				continue;
 			dprintk("%s: Switching CPU%u offline\n",
 				STATE_HELPER, cpu);
@@ -104,15 +104,15 @@ static void __ref state_helper_work(struct work_struct *work)
 				break;
 		}
 	} else if (info.target_cpus > num_online_cpus()) {
-		for(cpu = 1; cpu < NR_CPUS; cpu++) {
-			if (cpu_online(cpu) ||
-				msm_thermal_info.cpus_offlined & BIT(cpu))
-				continue;
-			cpu_up(cpu);
-			dprintk("%s: Switching CPU%u online\n",
-				STATE_HELPER, cpu);
+		for_each_possible_cpu(cpu) {
 			if (info.target_cpus <= num_online_cpus())
 				break;
+			if (!cpu_online(cpu) &&
+			!(msm_thermal_info.cpus_offlined & BIT(cpu))) {
+				cpu_up(cpu);
+				dprintk("%s: Switching CPU%u online\n",
+					STATE_HELPER, cpu);
+			}
 		}
 	} else {
 		dprintk("%s: Target already achieved: %u\n",
@@ -156,15 +156,6 @@ static void thermal_check(void)
 	info.therm_allowed_cpus = sum;
 }
 
-static void reschedule_nodelay(void)
-{
-	batt_level_check();
-	thermal_check();
-
-	cancel_delayed_work_sync(&helper_work);
-	queue_delayed_work(helper_wq, &helper_work, 0);
-}
-
 void reschedule_helper(void)
 {
 	batt_level_check();
@@ -193,10 +184,8 @@ void batt_level_notify(int k)
 			STATE_HELPER, info.batt_level);
 
 	/* Reschedule only if required. */
-	if (info.batt_level == helper.batt_level_cri ||
-		info.batt_level == helper.batt_level_cri+1 ||
-		info.batt_level == helper.batt_level_eco ||
-		info.batt_level == helper.batt_level_eco+1)
+	if (info.batt_level == helper.batt_level_cri || 
+		info.batt_level == helper.batt_level_eco)
 		reschedule_helper();
 }
 
@@ -220,8 +209,7 @@ void thermal_level_relay(long temp)
 static int state_notifier_callback(struct notifier_block *this,
 				unsigned long event, void *data)
 {
-	if (helper.enabled)
-		reschedule_nodelay();
+	reschedule_helper();
 
 	return NOTIFY_OK;
 }
