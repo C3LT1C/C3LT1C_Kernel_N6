@@ -591,6 +591,9 @@ endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
+# Kill format truncation warnings
+KBUILD_CFLAGS   += $(call cc-disable-warning,format-truncation,)
+
 ifdef CONFIG_READABLE_ASM
 # Disable optimizations that make assembler listings hard to read.
 # reorder blocks reorders the control in the function
