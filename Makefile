@@ -53,7 +53,7 @@ endif
 #
 # Use 'make C=1' to enable checking of only re-compiled files.
 # Use 'make C=2' to enable checking of *all* source files, regardless
-# of whether they are re-compiled or not.
+# of whether they are re-compiled or not.-Wno-unused-variable
 #
 # See the file "Documentation/sparse.txt" for more details, including
 # where to get the "sparse" utility.
@@ -383,7 +383,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -Wno-logical-not-parentheses -Wno-misleading-indentation \
+		   -Wno-unused-variable -Wno-logical-not-parentheses -Wno-misleading-indentation \
 		   -fno-delete-null-pointer-checks \
 		   -mtune=cortex-a15
 		   -std=gnu89
